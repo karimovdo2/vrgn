@@ -1,26 +1,46 @@
 import streamlit as st
 
-# Устанавливаем некоторые настройки страницы (необязательно)
+# Устанавливаем настройки страницы
 st.set_page_config(
     page_title="Прогнозирование ВРГН",
     layout="centered"
 )
 
-# 1. CSS для фона приложения
+# ------------------------------------------------------------------
+# 1. CSS-стили для фона, кнопки и ползунков
+# ------------------------------------------------------------------
 st.markdown(
     """
     <style>
+    /* Фон приложения */
     .stApp {
         background-color: #b1d1de;
+    }
+
+    /* Стили кнопки "Рассчитать риск" */
+    div.stButton > button:first-child {
+        background-color: #8cbccf;
+        color: black;
+        font-size: 1.2em;
+    }
+
+    /* Цвет "дорожки" у ползунков */
+    [data-testid="stSlider"] .stSlider > div > div:nth-child(2) {
+        background: #2a5363 !important;
+    }
+    /* Цвет "ползунка" (круг) */
+    [data-testid="stSlider"] .stSlider > div > div[role="slider"] {
+        background: #2a5363 !important;
+        border: none !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --------------------------------------------------------------------------------
-# 2. Функции для интерполяции и расчёта риска
-# --------------------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 2. Функции для расчёта риска
+# ------------------------------------------------------------------
 
 def interpolate_clamped(value, min_val, max_val, risk_min, risk_max):
     """
@@ -81,13 +101,12 @@ def calculate_risk(region_toxins, tail_length, tail_dna, tail_moment, has_g_alle
     
     return final_risk
 
-# --------------------------------------------------------------------------------
+# ------------------------------------------------------------------
 # 3. Интерфейс
-# --------------------------------------------------------------------------------
-st.title("Прогнозирование риска врождённой расщелины губы и нёба (ВРГН)")
-# 3.1. Две колонки: слева — инструкция, справа — картинка
-col_left, col_right = st.columns([0.7, 0.3])
+# ------------------------------------------------------------------
 
+# Размещаем инструкцию слева, а картинку справа
+col_left, col_right = st.columns([0.7, 0.3])
 
 with col_left:
     st.markdown(
@@ -103,7 +122,7 @@ with col_left:
 with col_right:
     st.image("img.png", use_container_width=True)
 
-# Ввод данных
+# Поля ввода
 region_toxins = st.checkbox("Регион с экотоксикантами", value=False)
 
 tail_length_mean = st.slider(
@@ -132,9 +151,9 @@ tail_moment_mean = st.slider(
 
 has_g_allele = st.checkbox("Наличие G-аллеля (rs1695, доминантная модель)", value=False)
 
-# Кнопка расчёта
+# Кнопка "Рассчитать риск"
 if st.button("Рассчитать риск"):
-    # Вычисляем риск в долях
+    # Вычисляем риск (в долях)
     final_risk = calculate_risk(
         region_toxins=region_toxins,
         tail_length=tail_length_mean,
@@ -147,23 +166,22 @@ if st.button("Рассчитать риск"):
 
     st.subheader(f"Результат: риск = {risk_percent:.4f}%")
 
-    # Задаём теоретический минимум и максимум для шкалы
-    # Мин: 0.15% (0.0015)
-    # Макс: ~1.168% (0.00365*3.2) 
-    min_risk_percent = 0.15
-    max_risk_percent = 1.168
+    # Условный минимум и максимум для шкалы
+    min_risk_percent = 0.15   # 0.0015
+    max_risk_percent = 1.168  # 0.00365 * 3.2
 
     # "Зажимаем" результат в диапазон [min_risk_percent, max_risk_percent]
     clamped_risk = max(min(risk_percent, max_risk_percent), min_risk_percent)
     fraction = (clamped_risk - min_risk_percent) / (max_risk_percent - min_risk_percent)
 
+    # Рисуем прогресс-бар
     bar_width = 300
     indicator_left = fraction * bar_width
 
-    # Отрисовка цветной линейки
+    # Градиент: от #4e77ad до red
     st.markdown(
         f"""
-        <div style="width:{bar_width}px; height:25px; background: linear-gradient(to right, green, red); 
+        <div style="width:{bar_width}px; height:25px; background: linear-gradient(to right, #4e77ad, red); 
                     position: relative; border-radius: 5px;">
             <div style="
                 position: absolute; 
