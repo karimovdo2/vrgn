@@ -59,18 +59,41 @@ def interpolate_clamped(value, min_val, max_val, risk_min, risk_max):
 
 def calculate_risk(region_toxins, tail_length, tail_dna, tail_moment, has_g_allele):
     """
-    Расчёт риска (в долях, где 0.0015 = 0.15%) по заданным правилам:
-      - Если region_toxins=False => риск=0.0015
-      - Если region_toxins=True => для каждого параметра делаем 
-          интерполяцию [ (min_val=..., max_val=...) -> (0.0015, 0.00365) ]
-        и берём среднее.
-      - Если has_g_allele=True => умножаем финальный риск на 3.2
+    Расчёт риска (в долях) по заданным правилам:
+      - Если region_toxins = False (без экотоксикантов):
+            r1, r2, r3 => линейная интерполяция (0.001..0.002)
+            final_risk = среднее(r1, r2, r3)
+      - Если region_toxins = True (с экотоксикантами):
+            r1, r2, r3 => линейная интерполяция (0.0015..0.00365)
+            final_risk = среднее(r1, r2, r3)
+      - Если has_g_allele=True => умножаем final_risk на 3.2.
     """
     if not region_toxins:
-        # Регион без экотоксикантов
-        final_risk = 0.0015
+        # Регион БЕЗ экотоксикантов => интерполяция 0.001..0.002
+        r1 = interpolate_clamped(
+            tail_length,
+            min_val=106.974489,
+            max_val=114.028956,
+            risk_min=0.001,
+            risk_max=0.002
+        )
+        r2 = interpolate_clamped(
+            tail_dna,
+            min_val=5.143913,
+            max_val=6.662332,
+            risk_min=0.001,
+            risk_max=0.002
+        )
+        r3 = interpolate_clamped(
+            tail_moment,
+            min_val=550.333221,
+            max_val=759.152807,
+            risk_min=0.001,
+            risk_max=0.002
+        )
+        final_risk = (r1 + r2 + r3) / 3.0
     else:
-        # Регион с экотоксикантами => интерполяция
+        # Регион С экотоксикантами => интерполяция 0.0015..0.00365
         r1 = interpolate_clamped(
             tail_length,
             min_val=106.974489,
@@ -92,7 +115,6 @@ def calculate_risk(region_toxins, tail_length, tail_dna, tail_moment, has_g_alle
             risk_min=0.0015,
             risk_max=0.00365
         )
-        # Среднее трёх
         final_risk = (r1 + r2 + r3) / 3.0
     
     # Генотип G-аллеля => умножаем на 3.2
@@ -105,6 +127,7 @@ def calculate_risk(region_toxins, tail_length, tail_dna, tail_moment, has_g_alle
 # 3. Интерфейс
 # ------------------------------------------------------------------
 st.title("Прогнозирование риска врождённой расщелины губы и нёба (ВРГН)")
+
 # Размещаем инструкцию слева, а картинку справа
 col_left, col_right = st.columns([0.7, 0.3])
 
@@ -120,6 +143,7 @@ with col_left:
     )
 
 with col_right:
+    # Отображаем картинку (img.png), файл должен лежать в той же папке, что и app.py
     st.image("img.png", use_container_width=True)
 
 # Поля ввода
@@ -166,9 +190,12 @@ if st.button("Рассчитать риск"):
 
     st.subheader(f"Результат: риск = {risk_percent:.4f}%")
 
-    # Условный минимум и максимум для шкалы
-    min_risk_percent = 0.15   # 0.0015
-    max_risk_percent = 1.168  # 0.00365 * 3.2
+    # Условные глобальные минимум и максимум для визуализации шкалы
+    # При region=False и без G-аллеля минимум ~0.1%, максимум 0.2% (или 0.64% с G-аллелем)
+    # При region=True  максимум ~1.168% (0.00365*3.2)
+    # Чтобы покрыть все варианты, используем 0.1%..1.168% (0.001..0.01168)
+    min_risk_percent = 0.1    # 0.001
+    max_risk_percent = 1.168  # 0.01168
 
     # "Зажимаем" результат в диапазон [min_risk_percent, max_risk_percent]
     clamped_risk = max(min(risk_percent, max_risk_percent), min_risk_percent)
